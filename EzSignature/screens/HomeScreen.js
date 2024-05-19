@@ -1,3 +1,4 @@
+// screens/HomeScreen.js
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, Alert, Modal, TouchableOpacity } from 'react-native';
 import { Avatar, ButtonGroup, Button } from 'react-native-elements';
@@ -5,6 +6,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import Entypo from "@expo/vector-icons/Entypo";
+import { getAuth, signOut } from 'firebase/auth';
 import styles from "../styles/Styles";
 
 const initialDocuments = [
@@ -18,7 +20,20 @@ export default function HomeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
+  const [user, setUser] = useState(null);
   const navigation = useNavigation();
+  const auth = getAuth();
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setUser(user);
+      } else {
+        navigation.navigate('Login'); // Redirect to login screen if not authenticated
+      }
+    });
+    return unsubscribe; // Unsubscribe on cleanup
+  }, [auth]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -115,6 +130,16 @@ export default function HomeScreen() {
     setUploadModalVisible(false);
   };
 
+  const handleLogout = () => {
+    signOut(auth)
+      .then(() => {
+        navigation.navigate('Login');
+      })
+      .catch((error) => {
+        console.error('Error logging out:', error);
+      });
+  };
+
   const renderItem = ({ item }) => (
     <View style={styles.item}>
       <Image source={require('../assets/doc-placeholder.png')} style={styles.docImage} />
@@ -149,6 +174,7 @@ export default function HomeScreen() {
         containerStyle={styles.buttonGroup}
         selectedIndex={0}
       />
+      <Button title="Logout" onPress={handleLogout} /> {/* Add a logout button for testing */}
       <FlatList
         data={documents}
         renderItem={renderItem}
@@ -231,4 +257,3 @@ export default function HomeScreen() {
     </View>
   );
 }
-

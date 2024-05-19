@@ -6,6 +6,7 @@ import * as Font from "expo-font";
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from './screens/HomeScreen';
+import TestScreen from './screens/AuthScreen'; // Import the TestScreen
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -19,7 +20,7 @@ export default function App() {
     async function prepare() {
       try {
         await Font.loadAsync(Entypo.font);
-        await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulasi penundaan untuk memastikan font ter-load
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate delay to ensure fonts are loaded
       } catch (e) {
         console.warn(e);
       } finally {
@@ -43,8 +44,9 @@ export default function App() {
   return (
     <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <NavigationContainer>
-        <Stack.Navigator initialRouteName="Home">
+        <Stack.Navigator initialRouteName="Test">
           <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="Test" component={TestScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </View>
