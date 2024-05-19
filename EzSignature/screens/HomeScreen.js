@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, Alert, Modal, TouchableOpacity } from 'react-native';
-import { Avatar, ButtonGroup, Icon, Button } from 'react-native-elements';
+import { Avatar, ButtonGroup, Button } from 'react-native-elements';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import Entypo from "@expo/vector-icons/Entypo";
+import styles from "../styles/Styles";
 
 const initialDocuments = [
-  { id: '1', name: 'test_file', date: 'April 5, 2024 at 12:03 PM', status: 'Not Signed' },
-  { id: '2', name: 'test_file2', date: 'April 5, 2024 at 12:06 PM', status: 'Signed' },
-  { id: '3', name: 'test_file3', date: 'April 5, 2024 at 12:12 PM', status: 'Not Signed' },
+  { id: '1', name: 'test_file', date: 'April 5, 2024 at 12:03 PM', status: 'Not Verified' },
+  { id: '2', name: 'test_file2', date: 'April 5, 2024 at 12:06 PM', status: 'Verified' },
+  { id: '3', name: 'test_file3', date: 'April 5, 2024 at 12:12 PM', status: 'Failed Verification' },
 ];
 
 export default function HomeScreen() {
   const [documents, setDocuments] = useState(initialDocuments);
   const [modalVisible, setModalVisible] = useState(false);
+  const [uploadModalVisible, setUploadModalVisible] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState(null);
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -23,9 +26,9 @@ export default function HomeScreen() {
         <Entypo
           name="plus"
           size={30}
-          color="blue"
+          color="#007BFF"
           style={{ marginRight: 15 }}
-          onPress={() => setModalVisible(true)}
+          onPress={() => setUploadModalVisible(true)}
         />
       ),
       headerLeft: () => (
@@ -48,13 +51,17 @@ export default function HomeScreen() {
         { text: "Cancel", style: "cancel" },
         { text: "Delete", onPress: () => {
           setDocuments(documents.filter(doc => doc.id !== id));
+          setSelectedDocument(null);
+          setModalVisible(false);
         } }
       ]
     );
   };
 
-  const handleSend = (id) => {
-    Alert.alert("Send Document", `Document with id: ${id} sent.`);
+  const handleShare = (id) => {
+    Alert.alert("Share Document", `Document with id: ${id} sent.`);
+    setSelectedDocument(null);
+    setModalVisible(false);
   };
 
   const handleImport = async () => {
@@ -65,9 +72,10 @@ export default function HomeScreen() {
           id: (documents.length + 1).toString(),
           name: result.name,
           date: new Date().toLocaleString(),
-          status: 'Not Signed',
+          status: 'Not Verified',
         };
         setDocuments([...documents, newDocument]);
+        setUploadModalVisible(false);
       }
     } catch (err) {
       console.warn(err);
@@ -86,10 +94,25 @@ export default function HomeScreen() {
         id: (documents.length + 1).toString(),
         name: `Scanned Document ${documents.length + 1}`,
         date: new Date().toLocaleString(),
-        status: 'Not Signed',
+        status: 'Not Verified',
       };
       setDocuments([...documents, newDocument]);
+      setUploadModalVisible(false);
     }
+  };
+
+  const openModal = (document) => {
+    setSelectedDocument(document);
+    setModalVisible(true);
+  };
+
+  const closeModal = () => {
+    setSelectedDocument(null);
+    setModalVisible(false);
+  };
+
+  const closeUploadModal = () => {
+    setUploadModalVisible(false);
   };
 
   const renderItem = ({ item }) => (
@@ -98,14 +121,13 @@ export default function HomeScreen() {
       <View style={styles.itemTextContainer}>
         <Text style={styles.docName}>{item.name}</Text>
         <Text style={styles.docDate}>{item.date}</Text>
-        <Text style={[styles.docStatus, item.status === 'Signed' ? styles.signed : styles.notSigned]}>
+        <Text style={[styles.docStatus, item.status === 'Verified' ? styles.verified : item.status === 'Failed Verification' ? styles.failed : styles.notVerified]}>
           {item.status}
         </Text>
       </View>
-      <View style={styles.itemButtons}>
-        <Button title="Delete" onPress={() => handleDelete(item.id)} />
-        <Button title="Send" onPress={() => handleSend(item.id)} />
-      </View>
+      <TouchableOpacity onPress={() => openModal(item)}>
+        <Entypo name="dots-three-vertical" size={20} />
+      </TouchableOpacity>
     </View>
   );
 
@@ -137,136 +159,76 @@ export default function HomeScreen() {
         animationType="slide"
         transparent={true}
         visible={modalVisible}
-        onRequestClose={() => {
-          setModalVisible(!modalVisible);
-        }}
+        onRequestClose={closeModal}
       >
-        <View style={styles.modalView}>
-          <Text style={styles.modalText}>Document Upload</Text>
-          <TouchableOpacity
-            style={styles.openButton}
-            onPress={() => {
-              setModalVisible(!modalVisible);
-              handleImport();
-            }}
-          >
-            <Text style={styles.textStyle}>Local Files</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.openButton}
-            onPress={() => {
-              setModalVisible(!modalVisible);
-              handleScan();
-            }}
-          >
-            <Text style={styles.textStyle}>Camera (OCR)</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{ ...styles.openButton, backgroundColor: "#2196F3" }}
-            onPress={() => {
-              setModalVisible(!modalVisible);
-            }}
-          >
-            <Text style={styles.textStyle}>Cancel</Text>
-          </TouchableOpacity>
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            {selectedDocument && (
+              <>
+                <View style={styles.modalHeader}>
+                  <Image source={require('../assets/doc-placeholder.png')} style={styles.docImageModal} />
+                  <View style={styles.modalTextContainer}>
+                    <Text style={styles.docName}>{selectedDocument.name}</Text>
+                    <Text style={styles.docDate}>{selectedDocument.date}</Text>
+                    <Text style={[styles.docStatus, selectedDocument.status === 'Verified' ? styles.verified : selectedDocument.status === 'Failed Verification' ? styles.failed : styles.notVerified]}>
+                      {selectedDocument.status}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => handleShare(selectedDocument.id)}
+                >
+                  <Text style={styles.buttonTitle}>Share</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: 'red' }]}
+                  onPress={() => handleDelete(selectedDocument.id)}
+                >
+                  <Text style={styles.buttonTitle}>Delete</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: 'gray' }]}
+                  onPress={closeModal}
+                >
+                  <Text style={styles.buttonTitle}>Close</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={uploadModalVisible}
+        onRequestClose={closeUploadModal}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.uploadModalView}>
+            <Text style={styles.uploadModalText}>Document Upload</Text>
+            <TouchableOpacity
+              style={styles.uploadOptionButton}
+              onPress={handleImport}
+            >
+              <Text style={styles.textStyle}>Local Files</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.uploadOptionButton}
+              onPress={handleScan}
+            >
+              <Text style={styles.textStyle}>Camera (OCR)</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={closeUploadModal}
+            >
+              <Text style={styles.textStyle}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  profileContainer: {
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 10,
-  },
-  profileEmail: {
-    fontSize: 16,
-    color: 'gray',
-  },
-  buttonGroup: {
-    marginBottom: 20,
-  },
-  documentList: {
-    paddingHorizontal: 10,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-  },
-  docImage: {
-    width: 40,
-    height: 40,
-    marginRight: 10,
-  },
-  itemTextContainer: {
-    flex: 1,
-  },
-  docName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  docDate: {
-    fontSize: 14,
-    color: 'gray',
-  },
-  docStatus: {
-    fontSize: 14,
-    marginTop: 5,
-  },
-  signed: {
-    color: 'green',
-  },
-  notSigned: {
-    color: 'red',
-  },
-  itemButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  modalView: {
-    margin: 20,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 35,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5
-  },
-  openButton: {
-    backgroundColor: "#F194FF",
-    borderRadius: 20,
-    padding: 10,
-    elevation: 2,
-    marginVertical: 10,
-  },
-  textStyle: {
-    color: "white",
-    fontWeight: "bold",
-    textAlign: "center"
-  },
-  modalText: {
-    marginBottom: 15,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-});
