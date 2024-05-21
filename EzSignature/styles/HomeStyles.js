@@ -1,6 +1,7 @@
+// styles/HomeStyles.js
 import { StyleSheet } from 'react-native';
 
-export default StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
@@ -115,7 +116,7 @@ export default StyleSheet.create({
     padding: 10,
     elevation: 2,
     marginVertical: 10,
-    width: '50%', 
+    width: '50%',
     alignItems: 'center',
   },
   buttonTitle: {
@@ -140,7 +141,7 @@ export default StyleSheet.create({
     padding: 10,
     elevation: 2,
     marginVertical: 10,
-    width: '50%', 
+    width: '50%',
     alignItems: 'center',
   },
   cancelButton: {
@@ -149,7 +150,7 @@ export default StyleSheet.create({
     padding: 10,
     elevation: 2,
     marginVertical: 10,
-    width: '50%', 
+    width: '50%',
     alignItems: 'center',
   },
   uploadModalText: {
@@ -159,3 +160,5 @@ export default StyleSheet.create({
     fontWeight: "bold",
   },
 });
+
+export default styles;

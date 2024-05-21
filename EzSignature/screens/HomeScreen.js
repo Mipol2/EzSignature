@@ -1,39 +1,43 @@
 // screens/HomeScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, Alert, Modal, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, Image, Alert, Modal, TouchableOpacity } from 'react-native';
 import { Avatar, ButtonGroup, Button } from 'react-native-elements';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import Entypo from "@expo/vector-icons/Entypo";
-import { getAuth, signOut } from 'firebase/auth';
-import styles from "../styles/Styles";
-
-const initialDocuments = [
-  { id: '1', name: 'test_file', date: 'April 5, 2024 at 12:03 PM', status: 'Not Verified' },
-  { id: '2', name: 'test_file2', date: 'April 5, 2024 at 12:06 PM', status: 'Verified' },
-  { id: '3', name: 'test_file3', date: 'April 5, 2024 at 12:12 PM', status: 'Failed Verification' },
-];
+import { signOut } from 'firebase/auth';
+import { collection, query, where, getDocs, addDoc, doc, deleteDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import styles from "../styles/HomeStyles";
+import { auth, db, storage } from '../firebaseConfig';
 
 export default function HomeScreen() {
-  const [documents, setDocuments] = useState(initialDocuments);
+  const [documents, setDocuments] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [user, setUser] = useState(null);
   const navigation = useNavigation();
-  const auth = getAuth();
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         setUser(user);
+        fetchDocuments(user.uid);
       } else {
-        navigation.navigate('Login'); // Redirect to login screen if not authenticated
+        navigation.navigate('Login'); 
       }
     });
-    return unsubscribe; // Unsubscribe on cleanup
+    return unsubscribe;
   }, [auth]);
+
+  const fetchDocuments = async (userId) => {
+    const q = query(collection(db, 'documents'), where('userId', '==', userId));
+    const querySnapshot = await getDocs(q);
+    const docs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setDocuments(docs);
+  };
 
   useEffect(() => {
     navigation.setOptions({
@@ -58,13 +62,14 @@ export default function HomeScreen() {
     });
   }, [navigation]);
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     Alert.alert(
       "Delete Document",
       "Are you sure you want to delete this document?",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Delete", onPress: () => {
+        { text: "Delete", onPress: async () => {
+          await deleteDoc(doc(db, "documents", id));
           setDocuments(documents.filter(doc => doc.id !== id));
           setSelectedDocument(null);
           setModalVisible(false);
@@ -83,13 +88,15 @@ export default function HomeScreen() {
     try {
       const result = await DocumentPicker.getDocumentAsync({});
       if (result.type === 'success') {
+        console.log("Document picked:", result);  // Log document details
         const newDocument = {
-          id: (documents.length + 1).toString(),
           name: result.name,
           date: new Date().toLocaleString(),
           status: 'Not Verified',
+          uri: result.uri,
         };
-        setDocuments([...documents, newDocument]);
+        await uploadDocument(newDocument);
+        fetchDocuments(user.uid);
         setUploadModalVisible(false);
       }
     } catch (err) {
@@ -105,14 +112,36 @@ export default function HomeScreen() {
     }
     const result = await ImagePicker.launchCameraAsync();
     if (!result.cancelled) {
+      console.log("Scanned document:", result);  // Log scanned document details
       const newDocument = {
-        id: (documents.length + 1).toString(),
         name: `Scanned Document ${documents.length + 1}`,
         date: new Date().toLocaleString(),
         status: 'Not Verified',
+        uri: result.uri,
       };
-      setDocuments([...documents, newDocument]);
+      await uploadDocument(newDocument);
+      fetchDocuments(user.uid);
       setUploadModalVisible(false);
+    }
+  };
+
+  const uploadDocument = async (document) => {
+    try {
+      const response = await fetch(document.uri);
+      const blob = await response.blob();
+      const storageRef = ref(storage, `documents/${user.uid}/${document.name}`);
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+      await addDoc(collection(db, "documents"), {
+        userId: user.uid,
+        name: document.name,
+        date: document.date,
+        status: document.status,
+        url: downloadURL,
+      });
+      console.log("Document uploaded successfully:", downloadURL);  // Log successful upload
+    } catch (error) {
+      console.error("Error uploading document:", error);
     }
   };
 
@@ -142,7 +171,7 @@ export default function HomeScreen() {
 
   const renderItem = ({ item }) => (
     <View style={styles.item}>
-      <Image source={require('../assets/doc-placeholder.png')} style={styles.docImage} />
+      <Image source={{ uri: item.url }} style={styles.docImage} />
       <View style={styles.itemTextContainer}>
         <Text style={styles.docName}>{item.name}</Text>
         <Text style={styles.docDate}>{item.date}</Text>
@@ -174,7 +203,7 @@ export default function HomeScreen() {
         containerStyle={styles.buttonGroup}
         selectedIndex={0}
       />
-      <Button title="Logout" onPress={handleLogout} /> {/* Add a logout button for testing */}
+      <Button title="Logout" onPress={handleLogout} /> 
       <FlatList
         data={documents}
         renderItem={renderItem}
@@ -192,7 +221,7 @@ export default function HomeScreen() {
             {selectedDocument && (
               <>
                 <View style={styles.modalHeader}>
-                  <Image source={require('../assets/doc-placeholder.png')} style={styles.docImageModal} />
+                  <Image source={{ uri: selectedDocument.url }} style={styles.docImageModal} />
                   <View style={styles.modalTextContainer}>
                     <Text style={styles.docName}>{selectedDocument.name}</Text>
                     <Text style={styles.docDate}>{selectedDocument.date}</Text>

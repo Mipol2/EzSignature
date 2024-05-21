@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import CheckBox from 'expo-checkbox';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
-
+import { useNavigation } from '@react-navigation/native';
 const { width, height } = Dimensions.get('window');
 
 const errorMessages = {
@@ -18,6 +18,7 @@ const errorMessages = {
 };
 
 export default function AuthScreen() {
+  const navigation = useNavigation();
   const [currentScreen, setCurrentScreen] = useState('initial');
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState('');
@@ -51,6 +52,7 @@ export default function AuthScreen() {
     signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
         setMessage('User logged in successfully!');
+        navigation.navigate('Home'); 
       })
       .catch((error) => {
         setMessage(errorMessages[error.code] || 'An error occurred.');
