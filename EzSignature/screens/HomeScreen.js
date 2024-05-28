@@ -5,12 +5,60 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import Entypo from "@expo/vector-icons/Entypo";
+import {RSA, RSAKeychain} from 'react-native-rsa-native';
+import RNHash, {JSHash} from 'react-native-hash';
+
+import RNHash, {
+  JSHash,
+  JSHmac,
+  useHash,
+  useHmac,
+  CONSTANTS,
+} from 'react-native-hash';
 
 const initialDocuments = [
   { id: '1', name: 'test_file', date: 'April 5, 2024 at 12:03 PM', status: 'Not Signed' },
   { id: '2', name: 'test_file2', date: 'April 5, 2024 at 12:06 PM', status: 'Signed' },
   { id: '3', name: 'test_file3', date: 'April 5, 2024 at 12:12 PM', status: 'Not Signed' },
 ];
+
+// ! TO-DO : masukin ke tempat yang seharusnya, sesuaikan; masukin logic ambil public key
+
+const signFile = async (fileUrl) => {
+
+  // ganti test pake nama user?
+
+  try {
+    const publicKey = await RSAKeychain.getPublicKey("com.ezsignature.test");
+    if (publicKey != null) {
+      const hash = await RNHash.hashFile(fileUrl, CONSTANTS.HashAlgorithms.sha512);
+      const sign = await RSA.sign(hash, "com.ezsignature.test");
+      return sign;
+    } else {
+      throw new Error("Key has not been generated!");
+    }
+  } catch (err) {
+      console.error(err);
+      return null;
+  }
+
+}
+
+const verifyFile = async (fileUrl, publicKey, sign) => {
+
+  // ganti test pake nama user?
+
+  try {
+    const hash = await RNHash.hashFile(fileUrl, CONSTANTS.HashAlgorithms.sha512);
+    const verify = await RSA.verify(sign, hash, publicKey);
+    return verify;
+  } catch (err) {
+      console.error(err);
+      return null;
+  }
+
+}
+
 
 export default function HomeScreen() {
   const [documents, setDocuments] = useState(initialDocuments);
