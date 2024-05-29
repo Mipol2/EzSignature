@@ -2,31 +2,74 @@ import React, { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 import Entypo from "@expo/vector-icons/Entypo";
 import * as SplashScreen from "expo-splash-screen";
-import { useFonts, Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
+import * as Font from "expo-font";
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from './screens/HomeScreen';
-import AuthScreen from './screens/AuthScreen'; // Import the AuthScreen
+import AuthScreen from './screens/AuthScreen';
+import {RSA, RSAKeychain} from 'react-native-rsa-native';
+
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
 
 const Stack = createStackNavigator();
 
+async function requestPermission() {
+  try {
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+      {
+        title: 'EZSignture READ_EXTERNAL_STORAGE Permission',
+        message:
+          'EZSignture needs READ_EXTERNAL_STORAGE permision to sign local files ',
+        buttonNeutral: 'Ask Me Later',
+        buttonNegative: 'Cancel',
+        buttonPositive: 'OK',
+      },
+    );
+    if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+      console.log('Success!');
+    } else {
+      console.log('Error!');
+    }
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+// ! TO-DO : masukin pas otentikasi pertama buat generate key, upload public key ke database
+
+const generateKeychain = async () => {
+
+  // ganti test pake nama user?
+  var generated = false
+
+  try {
+    const publicKey = await RSAKeychain.getPublicKey("com.ezsignature.test");
+    if (publicKey != null) {
+      generated = true;
+    }
+  } catch (err) {
+      console.error(err)
+  }
+
+  if (!generated) {
+    const keys = await RSAKeychain.generate("com.ezsignature.test")
+  }
+
+}
+
+
+
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
-
-  // Load fonts including Inter and Entypo icons
-  let [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    ...Entypo.font,
-  });
 
   useEffect(() => {
     async function prepare() {
       try {
-        await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate delay to ensure fonts are loaded
+        await Font.loadAsync(Entypo.font);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       } catch (e) {
         console.warn(e);
       } finally {
@@ -38,12 +81,12 @@ export default function App() {
   }, []);
 
   const onLayoutRootView = useCallback(async () => {
-    if (appIsReady && fontsLoaded) {
+    if (appIsReady) {
       await SplashScreen.hideAsync();
     }
-  }, [appIsReady, fontsLoaded]);
+  }, [appIsReady]);
 
-  if (!appIsReady || !fontsLoaded) {
+  if (!appIsReady) {
     return null;
   }
 
