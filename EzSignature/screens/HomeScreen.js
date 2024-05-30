@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import Entypo from "@expo/vector-icons/Entypo";
 import { signOut, updateProfile } from 'firebase/auth';
-import { ref, uploadBytes, getDownloadURL, listAll, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, listAll, deleteObject, getMetadata } from 'firebase/storage';
 import styles from "../styles/HomeStyles";
 import { auth, storage } from '../firebaseConfig';
 import PlaceholderImage from '../assets/people-placeholder.png';
@@ -20,42 +20,16 @@ import RNHash, {
   CONSTANTS,
 } from 'react-native-hash';
 
+
+// ! TO-DO : masukin pas otentikasi pertama buat generate key, upload public key ke database
+
+
+
 // ! TO-DO : masukin ke tempat yang seharusnya, sesuaikan; masukin logic ambil public key
 
-const signFile = async (fileUrl) => {
 
-  // ganti test pake nama user?
 
-  try {
-    const publicKey = await RSAKeychain.getPublicKey("com.ezsignature.test");
-    if (publicKey != null) {
-      const hash = await RNHash.hashFile(fileUrl, CONSTANTS.HashAlgorithms.sha512);
-      const sign = await RSA.sign(hash, "com.ezsignature.test");
-      return sign;
-    } else {
-      throw new Error("Key has not been generated!");
-    }
-  } catch (err) {
-      console.error(err);
-      return null;
-  }
 
-}
-
-const verifyFile = async (fileUrl, publicKey, sign) => {
-
-  // ganti test pake nama user?
-
-  try {
-    const hash = await RNHash.hashFile(fileUrl, CONSTANTS.HashAlgorithms.sha512);
-    const verify = await RSA.verify(sign, hash, publicKey);
-    return verify;
-  } catch (err) {
-      console.error(err);
-      return null;
-  }
-
-}
 
 
 export default function HomeScreen() {
@@ -73,6 +47,7 @@ export default function HomeScreen() {
       if (user) {
         setUser(user);
         fetchDocuments(user.uid);
+        generateKeychain(user.uid)
       } else {
         navigation.navigate('Auth'); 
       }
@@ -80,15 +55,78 @@ export default function HomeScreen() {
     return unsubscribe;
   }, [auth]);
 
+  const generateKeychain = async (userId) => {
+
+    // ganti test pake nama user?
+    var generated = false
+  
+    try {
+      const publicKey = await RSAKeychain.getPublicKey(`com.example.ezsignature.${userId}`);
+      if (publicKey != null) {
+        generated = true;
+      } else {
+        throw new Error("Key has not been generated, generating...")
+      }
+    } catch (err) {
+        console.error(err)
+        alert(`Error getting keychain: ${err.message}`);
+    }
+  
+    if (!generated) {
+      const keys = await RSAKeychain.generate(`com.example.ezsignature.${userId}`)
+    }
+  
+  }
+
+  const signFile = async (userId, fileUrl) => {
+
+    // ganti test pake nama user?
+  
+    try {
+      const publicKey = await RSAKeychain.getPublicKey(`com.example.ezsignature.${userId}`);
+      if (publicKey != null) {
+        const hash = await RNHash.hashFile(fileUrl, CONSTANTS.HashAlgorithms.sha512);
+        const sign = await RSA.sign(hash, `com.example.ezsignature.${userId}`);
+        return [publicKey, sign];
+      } else {
+        throw new Error("Key has not been generated!");
+      }
+    } catch (err) {
+        console.error(err);
+        alert(`Error signing document: ${err.message}`);
+    }
+  
+  }
+
+  const verifyFile = async (userId, fileUrl, publicKey, sign) => {
+
+    // ganti test pake nama user?
+  
+    try {
+      const hash = await RNHash.hashFile(fileUrl, CONSTANTS.HashAlgorithms.sha512);
+      const verify = await RSA.verify(sign, hash, publicKey);
+      return verify;
+    } catch (err) {
+        console.error(err);
+        return null;
+    }
+  
+  }
+
   const fetchDocuments = async (userId) => {
     try {
       const storageRef = ref(storage, `documents/${userId}`);
       const result = await listAll(storageRef);
       const docs = await Promise.all(result.items.map(async (itemRef) => {
-        const url = await getDownloadURL(itemRef);
+        const [url, metadata] = await Promise.all([
+          getDownloadURL(itemRef),
+          getMetadata(itemRef)]);
+        const { publicKey, sign } = metadata.customMetadata || { publicKey: null, sign: null };
         return {
           name: itemRef.name,
           url,
+          publicKey,
+          sign
         };
       }));
       setDocuments(docs);
@@ -142,8 +180,8 @@ export default function HomeScreen() {
     );
   };
 
-  const handleShare = (name) => {
-    Alert.alert("Share Document", `Document with name: ${name} shared.`);
+  const handleShare = (sign) => {
+    Alert.alert("Share Document", `Document signature: ${sign}`);
     setSelectedDocument(null);
     setModalVisible(false);
   };
@@ -180,12 +218,15 @@ export default function HomeScreen() {
         const pickedDocument = result.assets[0];
         setUploading(true);
         const filePath = `documents/${user.uid}/${pickedDocument.name}`;
-        await uploadDocument(pickedDocument, filePath);
+        const [publicKey, sign] = signFile(user.uid,pickedDocument.uri)
+        await uploadDocument(pickedDocument, filePath, publicKey, sign);
         const newDocument = {
           id: (documents.length + 1).toString(),
           name: pickedDocument.name,
           date: new Date().toLocaleString(),
           status: 'Not Signed',
+          publicKey: publicKey,
+          sign: sign,
           url: pickedDocument.uri,
           filePath: filePath
         };
@@ -223,13 +264,19 @@ export default function HomeScreen() {
     setUploading(false);
   };
 
-  const uploadDocument = async (document, filePath) => {
+  const uploadDocument = async (document, filePath, publicKey, sign) => {
     try {
       console.log('Uploading document:', document);
       const response = await fetch(document.uri);
       const blob = await response.blob();
       const storageRef = ref(storage, filePath);
-      await uploadBytes(storageRef, blob);
+      const metadata = {
+        customMetadata: {
+          'publicKey': publicKey,
+          'sign': sign
+        }      
+      }
+      await uploadBytes(storageRef, blob, metadata);
       const downloadURL = await getDownloadURL(storageRef);
       setUrl(downloadURL);
       console.log("Document uploaded successfully:", downloadURL);
@@ -293,9 +340,9 @@ export default function HomeScreen() {
                 </View>
                 <TouchableOpacity
                   style={styles.actionButton}
-                  onPress={() => handleShare(selectedDocument.name)}
+                  onPress={() => handleShare(selectedDocument.sign)}
                 >
-                  <Text style={styles.buttonTitle}>Share</Text>
+                  <Text style={styles.buttonTitle}>View Signature</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionButton, { backgroundColor: 'red' }]}

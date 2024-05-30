@@ -38,27 +38,6 @@ async function requestPermission() {
   }
 }
 
-// ! TO-DO : masukin pas otentikasi pertama buat generate key, upload public key ke database
-
-const generateKeychain = async () => {
-
-  // ganti test pake nama user?
-  var generated = false
-
-  try {
-    const publicKey = await RSAKeychain.getPublicKey("com.ezsignature.test");
-    if (publicKey != null) {
-      generated = true;
-    }
-  } catch (err) {
-      console.error(err)
-  }
-
-  if (!generated) {
-    const keys = await RSAKeychain.generate("com.ezsignature.test")
-  }
-
-}
 
 
 
