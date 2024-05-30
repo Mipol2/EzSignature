@@ -85,8 +85,10 @@ export default function HomeScreen() {
     try {
       const publicKey = await RSAKeychain.getPublicKey(`com.example.ezsignature.${userId}`);
       if (publicKey != null) {
-        const hash = await RNHash.hashFile(fileUrl, CONSTANTS.HashAlgorithms.sha512);
-        const sign = await RSA.sign(hash, `com.example.ezsignature.${userId}`);
+        const cleanUrl = fileUrl.replace('file://', '');
+        const hash = await RNHash.hashFile(cleanUrl, CONSTANTS.HashAlgorithms.sha512);
+        const sign = await RSAKeychain.sign(hash,`com.example.ezsignature.${userId}`);
+
         return [publicKey, sign];
       } else {
         throw new Error("Key has not been generated!");
@@ -218,7 +220,8 @@ export default function HomeScreen() {
         const pickedDocument = result.assets[0];
         setUploading(true);
         const filePath = `documents/${user.uid}/${pickedDocument.name}`;
-        const [publicKey, sign] = signFile(user.uid,pickedDocument.uri)
+        const [publicKey, sign] = await signFile(user.uid,pickedDocument.uri);
+        
         await uploadDocument(pickedDocument, filePath, publicKey, sign);
         const newDocument = {
           id: (documents.length + 1).toString(),
@@ -236,6 +239,7 @@ export default function HomeScreen() {
       }
     } catch (err) {
       console.error("Error picking document:", err);
+      alert(`Error picking document: ${err.message}`);
     }
     setUploading(false);
   };
