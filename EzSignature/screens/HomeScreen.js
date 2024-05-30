@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import Entypo from "@expo/vector-icons/Entypo";
 import { signOut, updateProfile } from 'firebase/auth';
-import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, listAll, deleteObject } from 'firebase/storage';
 import styles from "../styles/HomeStyles";
 import { auth, storage } from '../firebaseConfig';
 import PlaceholderImage from '../assets/people-placeholder.png';
@@ -74,7 +74,7 @@ export default function HomeScreen() {
         setUser(user);
         fetchDocuments(user.uid);
       } else {
-        navigation.navigate('Login'); 
+        navigation.navigate('Auth'); 
       }
     });
     return unsubscribe;
