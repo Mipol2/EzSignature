@@ -105,8 +105,9 @@ export default function HomeScreen() {
     // ganti test pake nama user?
   
     try {
-      const hash = await RNHash.hashFile(fileUrl, CONSTANTS.HashAlgorithms.sha512);
-      const verify = await RSA.verify(sign, hash, publicKey);
+      const cleanUrl = fileUrl.replace('file://', '');
+      const hash = await RNHash.hashFile(cleanUrl, CONSTANTS.HashAlgorithms.sha512);
+      const verify = await RSAKeychain.verify(sign, hash, publicKey);
       return verify;
     } catch (err) {
         console.error(err);
