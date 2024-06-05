@@ -19,6 +19,7 @@
       "bundleIdentifier": "com.example.ezsignature"
     },
     "android": {
+      "permissions": ["CAMERA", "WRITE_EXTERNAL_STORAGE", "READ_EXTERNAL_STORAGE"],
       "package": "com.example.ezsignature",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {

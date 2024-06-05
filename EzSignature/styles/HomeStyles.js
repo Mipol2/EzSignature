@@ -110,20 +110,6 @@ const styles = StyleSheet.create({
   modalTextContainer: {
     flex: 1,
   },
-  actionButton: {
-    backgroundColor: "#007BFF",
-    borderRadius: 20,
-    padding: 10,
-    elevation: 2,
-    marginVertical: 10,
-    width: '50%',
-    alignItems: 'center',
-  },
-  buttonTitle: {
-    textAlign: 'center',
-    color: 'white',
-    fontWeight: 'bold',
-  },
   textStyle: {
     color: 'white',
     fontWeight: 'bold',
@@ -135,8 +121,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  uploadOptionButton: {
-    height: 56,
+  actionButton: {
+    height: 48,
     backgroundColor: '#007FFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -145,7 +131,7 @@ const styles = StyleSheet.create({
     width: '75%',
   },
   cancelButton: {
-    height: 56,
+    height: 48,
     backgroundColor: "gray",
     alignItems: 'center',
     justifyContent: 'center',
@@ -158,6 +144,23 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  input: {
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginBottom: 20,
+    paddingHorizontal: 10,
+    width: '100%',
+  },
+  textInput: {
+    height: 48,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 16,
+    width: '75%',
   },
 });
 

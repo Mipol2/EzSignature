@@ -1,24 +1,20 @@
 // screens/HomeScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, Image, Alert, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, Image, Alert, Modal, TouchableOpacity, ActivityIndicator, Share, TextInput } from 'react-native';
 import { Avatar, ButtonGroup, Button } from 'react-native-elements';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import * as MediaLibrary from 'expo-media-library';
 import { useNavigation } from '@react-navigation/native';
 import Entypo from "@expo/vector-icons/Entypo";
 import { signOut, updateProfile } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, listAll, deleteObject, getMetadata } from 'firebase/storage';
+import { addDoc, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import styles from "../styles/HomeStyles";
-import { auth, storage } from '../firebaseConfig';
+import { auth, storage, db } from '../firebaseConfig';
 import PlaceholderImage from '../assets/people-placeholder.png';
-import {RSA, RSAKeychain} from 'react-native-rsa-native';
-import RNHash, {
-  JSHash,
-  JSHmac,
-  useHash,
-  useHmac,
-  CONSTANTS,
-} from 'react-native-hash';
+import { RSA, RSAKeychain } from 'react-native-rsa-native';
+import RNHash, { CONSTANTS } from 'react-native-hash';
 
 
 // ! TO-DO : masukin pas otentikasi pertama buat generate key, upload public key ke database
@@ -36,10 +32,16 @@ export default function HomeScreen() {
   const [documents, setDocuments] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
+  const [renameModalVisible, setRenameModalVisible] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [user, setUser] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [url, setUrl] = useState('');
+  const [newDocumentName, setNewDocumentName] = useState('');
+  const [documentUri, setDocumentUri] = useState('');
+  const [filePath, setFilePath] = useState('');
+  const [publicKey, setPublicKey] = useState('');
+  const [sign, setSign] = useState('');
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -47,7 +49,7 @@ export default function HomeScreen() {
       if (user) {
         setUser(user);
         fetchDocuments(user.uid);
-        generateKeychain(user.uid)
+        generateKeychain(user.uid);
       } else {
         navigation.navigate('Auth'); 
       }
@@ -56,65 +58,66 @@ export default function HomeScreen() {
   }, [auth]);
 
   const generateKeychain = async (userId) => {
-
+  
     // ganti test pake nama user?
-    var generated = false
+
+    var generated = false;
   
     try {
       const publicKey = await RSAKeychain.getPublicKey(`com.example.ezsignature.${userId}`);
       if (publicKey != null) {
         generated = true;
       } else {
-        throw new Error("Key has not been generated, generating...")
+        throw new Error("Key has not been generated, generating...");
       }
     } catch (err) {
-        console.error(err)
-        alert(`Error getting keychain: ${err.message}`);
+      console.error(err);
+      alert(`Error getting keychain: ${err.message}`);
     }
   
     if (!generated) {
-      const keys = await RSAKeychain.generate(`com.example.ezsignature.${userId}`)
+      const keys = await RSAKeychain.generate(`com.example.ezsignature.${userId}`);
     }
-  
-  }
+  };
 
   const signFile = async (userId, fileUrl) => {
 
     // ganti test pake nama user?
-  
+
     try {
       const publicKey = await RSAKeychain.getPublicKey(`com.example.ezsignature.${userId}`);
       if (publicKey != null) {
         const cleanUrl = fileUrl.replace('file://', '');
         const hash = await RNHash.hashFile(cleanUrl, CONSTANTS.HashAlgorithms.sha512);
-        const sign = await RSAKeychain.sign(hash,`com.example.ezsignature.${userId}`);
-
+        const sign = await RSAKeychain.sign(hash, `com.example.ezsignature.${userId}`);
         return [publicKey, sign];
       } else {
+        alert("Key has not been generated!");
         throw new Error("Key has not been generated!");
       }
     } catch (err) {
-        console.error(err);
-        alert(`Error signing document: ${err.message}`);
+      console.error(err);
+      alert(`Error signing document: ${err.message}`);
+      
+      // INI DUMMY BUAT TESTING (cuma kesini kalo yg atas error)
+      return ["dummyPublicKey", "dummySignature"];
     }
-  
-  }
+  };
 
   const verifyFile = async (userId, fileUrl, publicKey, sign) => {
 
     // ganti test pake nama user?
-  
+
     try {
       const cleanUrl = fileUrl.replace('file://', '');
       const hash = await RNHash.hashFile(cleanUrl, CONSTANTS.HashAlgorithms.sha512);
       const verify = await RSAKeychain.verify(sign, hash, publicKey);
       return verify;
     } catch (err) {
-        console.error(err);
-        return null;
+      console.error(err);
+      return null;
     }
-  
-  }
+  };
 
   const fetchDocuments = async (userId) => {
     try {
@@ -172,21 +175,48 @@ export default function HomeScreen() {
           try {
             const docRef = ref(storage, `documents/${user.uid}/${name}`);
             await deleteObject(docRef);
+  
+            // Find and delete the Firestore document
+            const querySnapshot = await getDocs(collection(db, 'documents'));
+            let docId = null;
+            querySnapshot.forEach((doc) => {
+              if (doc.data().document_name === name && doc.data().owner_id === user.uid) {
+                docId = doc.id;
+              }
+            });
+  
+            if (docId) {
+              await deleteDoc(doc(db, 'documents', docId));
+            }
+  
             setDocuments(documents.filter(doc => doc.name !== name));
             setSelectedDocument(null);
             setModalVisible(false);
           } catch (error) {
             console.error('Error deleting document:', error);
+            alert('Error deleting document.');
           }
         } }
       ]
     );
   };
 
-  const handleShare = (sign) => {
-    Alert.alert("Share Document", `Document signature: ${sign}`);
-    setSelectedDocument(null);
-    setModalVisible(false);
+  const shareDocument = async (document) => {
+    try {
+      // Fetch the download URL for the document
+      const downloadURL = await getDownloadURL(ref(storage, document.filePath));
+      
+      const message = `Here is the document: ${document.name}\n\nDocument URL: ${downloadURL}\n\nDigital Signature: ${document.sign}\n\nPublic Key: ${document.publicKey}`;
+      await Share.share({
+        message,
+      });
+    } catch (error) {
+      console.error('Error sharing document:', error);
+    }
+  };
+
+  const handleShare = (document) => {
+    shareDocument(document);
   };
 
   const openModal = (document) => {
@@ -203,6 +233,10 @@ export default function HomeScreen() {
     setUploadModalVisible(false);
   };
 
+  const closeRenameModal = () => {
+    setRenameModalVisible(false);
+  };
+
   const handleLogout = () => {
     signOut(auth)
       .then(() => {
@@ -216,33 +250,48 @@ export default function HomeScreen() {
   const handleUpload = async () => {
     try {
       let result = await DocumentPicker.getDocumentAsync({});
-      console.log("DocumentPicker result:", result);
       if (!result.canceled) {
         const pickedDocument = result.assets[0];
-        setUploading(true);
-        const filePath = `documents/${user.uid}/${pickedDocument.name}`;
-        const [publicKey, sign] = await signFile(user.uid,pickedDocument.uri);
-        
-        await uploadDocument(pickedDocument, filePath, publicKey, sign);
-        const newDocument = {
-          id: (documents.length + 1).toString(),
-          name: pickedDocument.name,
-          date: new Date().toLocaleString(),
-          status: 'Not Signed',
-          publicKey: publicKey,
-          sign: sign,
-          url: pickedDocument.uri,
-          filePath: filePath
-        };
-        setDocuments([...documents, newDocument]);
-      } else {
-        console.log("DocumentPicker cancelled or failed");
+        setDocumentUri(pickedDocument.uri);
+        setFilePath(`documents/${user.uid}/${pickedDocument.name}`);
+        setRenameModalVisible(true);
       }
     } catch (err) {
       console.error("Error picking document:", err);
       alert(`Error picking document: ${err.message}`);
     }
+  };
+
+  const handleRenameAndUpload = async () => {
+    try {
+      setUploading(true);
+      const [publicKey, sign] = await signFile(user.uid, documentUri);
+      const newFilePath = `documents/${user.uid}/${newDocumentName}.jpg`;
+      await uploadDocument({ uri: documentUri, name: `${newDocumentName}.jpg` }, newFilePath, publicKey, sign);
+      const newDocument = {
+        id: (documents.length + 1).toString(),
+        name: `${newDocumentName}.jpg`,
+        date: new Date().toLocaleString(),
+        status: 'Not Signed',
+        publicKey: publicKey,
+        sign: sign,
+        url: documentUri,
+        filePath: newFilePath
+      };
+      setDocuments([...documents, newDocument]);
+      setRenameModalVisible(false);
+    } catch (err) {
+      console.error("Error uploading document:", err);
+      alert(`Error uploading document: ${err.message}`);
+    }
     setUploading(false);
+  };
+
+  const handleViewSignature = (document) => {
+    Alert.alert(
+      "Document Signature",
+      `Digital Signature: ${document.sign}\n\nPublic Key: ${document.publicKey}`
+    );
   };
 
   const handleScan = async () => {
@@ -253,38 +302,38 @@ export default function HomeScreen() {
     }
     const result = await ImagePicker.launchCameraAsync();
     if (!result.cancelled) {
-      setUploading(true);
-      const filePath = `documents/${user.uid}/Scanned_Document_${documents.length + 1}`;
-      await uploadDocument(result, filePath);
-      const newDocument = {
-        id: (documents.length + 1).toString(),
-        name: `Scanned Document ${documents.length + 1}`,
-        date: new Date().toLocaleString(),
-        status: 'Not Signed',
-        url: result.uri,
-        filePath: filePath
-      };
-      setDocuments([...documents, newDocument]);
+      setDocumentUri(result.assets[0].uri);
+      setFilePath(`documents/${user.uid}/Scanned_Document_${documents.length + 1}`);
+      setRenameModalVisible(true);
     }
-    setUploading(false);
   };
 
   const uploadDocument = async (document, filePath, publicKey, sign) => {
     try {
-      console.log('Uploading document:', document);
       const response = await fetch(document.uri);
       const blob = await response.blob();
       const storageRef = ref(storage, filePath);
       const metadata = {
         customMetadata: {
           'publicKey': publicKey,
-          'sign': sign
-        }      
-      }
+          'sign': sign,
+        },
+      };
       await uploadBytes(storageRef, blob, metadata);
       const downloadURL = await getDownloadURL(storageRef);
+  
+      // Add metadata
+      const docRef = await addDoc(collection(db, 'documents'), {
+        document_name: document.name,
+        owner_id: user.uid,
+        public_key: publicKey,
+        date_created: new Date().toISOString(),
+        document_url: downloadURL,
+        digital_signature: sign,
+      });
+  
+      console.log("Document uploaded successfully and metadata stored:", docRef.id);
       setUrl(downloadURL);
-      console.log("Document uploaded successfully:", downloadURL);
     } catch (error) {
       console.error("Error uploading document:", error);
       alert('Error uploading document.');
@@ -345,21 +394,27 @@ export default function HomeScreen() {
                 </View>
                 <TouchableOpacity
                   style={styles.actionButton}
-                  onPress={() => handleShare(selectedDocument.sign)}
+                  onPress={() => handleShare(selectedDocument)}
                 >
-                  <Text style={styles.buttonTitle}>View Signature</Text>
+                  <Text style={styles.textStyle}>Share</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => handleViewSignature(selectedDocument)}
+                >
+                  <Text style={styles.textStyle}>View Signature</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionButton, { backgroundColor: 'red' }]}
                   onPress={() => handleDelete(selectedDocument.name)}
                 >
-                  <Text style={styles.buttonTitle}>Delete</Text>
+                  <Text style={styles.textStyle}>Delete</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: 'gray' }]}
+                  style={[styles.cancelButton, { backgroundColor: 'gray' }]}
                   onPress={closeModal}
                 >
-                  <Text style={styles.buttonTitle}>Close</Text>
+                  <Text style={styles.textStyle}>Close</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -376,20 +431,50 @@ export default function HomeScreen() {
           <View style={styles.uploadModalView}>
             <Text style={styles.uploadModalText}>Document Upload</Text>
             <TouchableOpacity
-              style={styles.uploadOptionButton}
+              style={styles.actionButton}
               onPress={handleUpload}
             >
               <Text style={styles.textStyle}>Local Files</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.uploadOptionButton}
+              style={styles.actionButton}
               onPress={handleScan}
             >
-              <Text style={styles.textStyle}>Camera (OCR)</Text>
+              <Text style={styles.textStyle}>Camera</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={closeUploadModal}
+            >
+              <Text style={styles.textStyle}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={renameModalVisible}
+        onRequestClose={closeRenameModal}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.uploadModalView}>
+            <Text style={styles.uploadModalText}>Rename Document</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Enter new document name"
+              value={newDocumentName}
+              onChangeText={setNewDocumentName}
+            />
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleRenameAndUpload}
+            >
+              <Text style={styles.textStyle}>Upload</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={closeRenameModal}
             >
               <Text style={styles.textStyle}>Cancel</Text>
             </TouchableOpacity>
