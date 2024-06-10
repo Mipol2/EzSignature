@@ -162,6 +162,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     width: '75%',
   },
+  docDate: {
+    fontSize: 14,
+    color: 'gray',
+  },
+  docStatus: {
+    fontSize: 14,
+    marginTop: 5,
+  },
+  verified: {
+    color: 'green',
+  },
+  notVerified: {
+    color: 'gray',
+  },
 });
 
 export default styles;

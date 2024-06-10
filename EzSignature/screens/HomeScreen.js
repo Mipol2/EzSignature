@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { useNavigation } from '@react-navigation/native';
 import Entypo from "@expo/vector-icons/Entypo";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { signOut, updateProfile } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL, listAll, deleteObject, getMetadata } from 'firebase/storage';
 import { addDoc, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
@@ -15,7 +16,6 @@ import { auth, storage, db } from '../firebaseConfig';
 import PlaceholderImage from '../assets/people-placeholder.png';
 import { RSA, RSAKeychain } from 'react-native-rsa-native';
 import RNHash, { CONSTANTS } from 'react-native-hash';
-
 
 // ! TO-DO : masukin pas otentikasi pertama buat generate key, upload public key ke database
 
@@ -127,12 +127,13 @@ export default function HomeScreen() {
         const [url, metadata] = await Promise.all([
           getDownloadURL(itemRef),
           getMetadata(itemRef)]);
-        const { publicKey, sign } = metadata.customMetadata || { publicKey: null, sign: null };
+        const { publicKey, sign, dateCreated } = metadata.customMetadata || { publicKey: null, sign: null, dateCreated: new Date().toISOString() };
         return {
           name: itemRef.name,
           url,
           publicKey,
-          sign
+          sign,
+          dateCreated: new Date(dateCreated).toLocaleString(), // Format the date here
         };
       }));
       setDocuments(docs);
@@ -154,11 +155,12 @@ export default function HomeScreen() {
         />
       ),
       headerLeft: () => (
-        <Entypo
-          name="menu"
+        <MaterialIcons
+          name="logout"
           size={30}
+          color="#007BFF"
           style={{ marginLeft: 15 }}
-          onPress={() => {}}
+          onPress={handleLogout}
         />
       ),
       headerTitleAlign: 'center',
@@ -267,12 +269,12 @@ export default function HomeScreen() {
       setUploading(true);
       const [publicKey, sign] = await signFile(user.uid, documentUri);
       const newFilePath = `documents/${user.uid}/${newDocumentName}.jpg`;
-      await uploadDocument({ uri: documentUri, name: `${newDocumentName}.jpg` }, newFilePath, publicKey, sign);
+      const dateCreated = new Date().toISOString();
+      await uploadDocument({ uri: documentUri, name: `${newDocumentName}.jpg` }, newFilePath, publicKey, sign, dateCreated);
       const newDocument = {
         id: (documents.length + 1).toString(),
         name: `${newDocumentName}.jpg`,
-        date: new Date().toLocaleString(),
-        status: 'Not Signed',
+        date: dateCreated,
         publicKey: publicKey,
         sign: sign,
         url: documentUri,
@@ -280,6 +282,7 @@ export default function HomeScreen() {
       };
       setDocuments([...documents, newDocument]);
       setRenameModalVisible(false);
+      setUploadModalVisible(false);
     } catch (err) {
       console.error("Error uploading document:", err);
       alert(`Error uploading document: ${err.message}`);
@@ -317,6 +320,7 @@ export default function HomeScreen() {
         customMetadata: {
           'publicKey': publicKey,
           'sign': sign,
+          'dateCreated': new Date().toISOString(),
         },
       };
       await uploadBytes(storageRef, blob, metadata);
@@ -345,6 +349,7 @@ export default function HomeScreen() {
       <Image source={{ uri: item.url || 'https://via.placeholder.com/150' }} style={styles.docImage} />
       <View style={styles.itemTextContainer}>
         <Text style={styles.docName}>{item.name}</Text>
+        <Text style={styles.docDate}>{item.dateCreated}</Text>
       </View>
       <TouchableOpacity onPress={() => openModal(item)}>
         <Entypo name="dots-three-vertical" size={20} />
@@ -368,7 +373,6 @@ export default function HomeScreen() {
         containerStyle={styles.buttonGroup}
         selectedIndex={0}
       />
-      <Button title="Logout" onPress={handleLogout} />
       <FlatList
         data={documents}
         renderItem={renderItem}
