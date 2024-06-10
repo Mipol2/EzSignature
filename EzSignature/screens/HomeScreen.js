@@ -41,6 +41,9 @@ export default function HomeScreen() {
   const [documentUri, setDocumentUri] = useState('');
   const [filePath, setFilePath] = useState('');
   const [publicKey, setPublicKey] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [downloadLink, setDownloadLink] = useState('');
+  const [digitalSignature, setDigitalSignature] = useState('');
   const [sign, setSign] = useState('');
   const navigation = useNavigation();
 
@@ -99,7 +102,7 @@ export default function HomeScreen() {
       console.error(err);
       alert(`Error signing document: ${err.message}`);
       
-      // INI DUMMY BUAT TESTING (cuma kesini kalo yg atas error)
+      // INI DUMMY BUAT TESTING (cuma kesini kalo yg atas error) ############
       return ["dummyPublicKey", "dummySignature"];
     }
   };
@@ -133,7 +136,7 @@ export default function HomeScreen() {
           url,
           publicKey,
           sign,
-          dateCreated: new Date(dateCreated).toLocaleString(), // Format the date here
+          dateCreated: new Date(dateCreated).toLocaleString(),
         };
       }));
       setDocuments(docs);
@@ -177,8 +180,6 @@ export default function HomeScreen() {
           try {
             const docRef = ref(storage, `documents/${user.uid}/${name}`);
             await deleteObject(docRef);
-  
-            // Find and delete the Firestore document
             const querySnapshot = await getDocs(collection(db, 'documents'));
             let docId = null;
             querySnapshot.forEach((doc) => {
@@ -186,11 +187,9 @@ export default function HomeScreen() {
                 docId = doc.id;
               }
             });
-  
             if (docId) {
               await deleteDoc(doc(db, 'documents', docId));
             }
-  
             setDocuments(documents.filter(doc => doc.name !== name));
             setSelectedDocument(null);
             setModalVisible(false);
@@ -205,9 +204,7 @@ export default function HomeScreen() {
 
   const shareDocument = async (document) => {
     try {
-      // Fetch the download URL for the document
       const downloadURL = await getDownloadURL(ref(storage, document.filePath));
-      
       const message = `Here is the document: ${document.name}\n\nDocument URL: ${downloadURL}\n\nDigital Signature: ${document.sign}\n\nPublic Key: ${document.publicKey}`;
       await Share.share({
         message,
@@ -237,6 +234,10 @@ export default function HomeScreen() {
 
   const closeRenameModal = () => {
     setRenameModalVisible(false);
+  };
+
+  const closeVerifyModal = () => {
+    setVerifyModalVisible(false);
   };
 
   const handleLogout = () => {
@@ -290,6 +291,22 @@ export default function HomeScreen() {
     setUploading(false);
   };
 
+  const handleVerify = async () => {
+    try {
+      setUploading(true);
+      const isValid = await verifyFile(downloadLink, publicKey, digitalSignature);
+      Alert.alert(
+        "Verification Result",
+        isValid ? "The document is valid and has not been tampered with." : "The document is invalid or has been tampered with."
+      );
+      setVerifyModalVisible(false);
+    } catch (err) {
+      console.error("Error verifying document:", err);
+      alert(`Error verifying document: ${err.message}`);
+    }
+    setUploading(false);
+  };
+
   const handleViewSignature = (document) => {
     Alert.alert(
       "Document Signature",
@@ -325,8 +342,6 @@ export default function HomeScreen() {
       };
       await uploadBytes(storageRef, blob, metadata);
       const downloadURL = await getDownloadURL(storageRef);
-  
-      // Add metadata
       const docRef = await addDoc(collection(db, 'documents'), {
         document_name: document.name,
         owner_id: user.uid,
@@ -335,7 +350,6 @@ export default function HomeScreen() {
         document_url: downloadURL,
         digital_signature: sign,
       });
-  
       console.log("Document uploaded successfully and metadata stored:", docRef.id);
       setUrl(downloadURL);
     } catch (error) {
@@ -371,15 +385,47 @@ export default function HomeScreen() {
       <ButtonGroup
         buttons={['Sign Mode', 'Verify Mode']}
         containerStyle={styles.buttonGroup}
-        selectedIndex={0}
+        selectedIndex={selectedIndex}
+        onPress={setSelectedIndex}
       />
-      <FlatList
-        data={documents}
-        renderItem={renderItem}
-        keyExtractor={item => item.name}
-        style={styles.documentList}
-      />
-      {uploading && <ActivityIndicator size="large" color="#0000ff" />}
+      {selectedIndex === 0 ? (
+        <>
+          <FlatList
+            data={documents}
+            renderItem={renderItem}
+            keyExtractor={item => item.name}
+            style={styles.documentList}
+          />
+          {uploading && <ActivityIndicator size="large" color="#0000ff" />}
+        </>
+      ) : (
+        <View style={styles.verifyContainer}>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Enter download link"
+            value={downloadLink}
+            onChangeText={setDownloadLink}
+          />
+          <TextInput
+            style={styles.textInput}
+            placeholder="Enter digital signature"
+            value={digitalSignature}
+            onChangeText={setDigitalSignature}
+          />
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleVerify}
+          >
+            <Text style={styles.textStyle}>Verify</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={closeVerifyModal}
+          >
+            <Text style={styles.textStyle}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       <Modal
         animationType="slide"
         transparent={true}

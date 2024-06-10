@@ -1,14 +1,22 @@
-// styles/HomeStyles.js
 import { StyleSheet } from 'react-native';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    alignItems: 'center',
+    padding: 20,
   },
   profileContainer: {
     alignItems: 'center',
     marginVertical: 20,
+  },
+  profileImage: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#ccc',
+    borderRadius: 50,
+    marginBottom: 10,
   },
   profileName: {
     fontSize: 24,
@@ -21,9 +29,10 @@ const styles = StyleSheet.create({
   },
   buttonGroup: {
     marginBottom: 20,
+    width: '75%',
   },
   documentList: {
-    paddingHorizontal: 10,
+    width: '100%',
   },
   item: {
     flexDirection: 'row',
@@ -48,27 +57,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'gray',
   },
-  docStatus: {
-    fontSize: 14,
-    marginTop: 5,
-  },
-  verified: {
-    color: 'green',
-  },
-  notVerified: {
-    color: 'gray',
-  },
-  failed: {
-    color: 'red',
-  },
   centeredView: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
   },
   modalView: {
-    width: '100%',
+    width: '90%',
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 35,
@@ -83,7 +79,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   uploadModalView: {
-    width: '100%',
+    width: '90%',
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 20,
@@ -132,7 +128,7 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     height: 48,
-    backgroundColor: "gray",
+    backgroundColor: 'gray',
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
@@ -141,9 +137,9 @@ const styles = StyleSheet.create({
   },
   uploadModalText: {
     marginBottom: 15,
-    textAlign: "center",
+    textAlign: 'center',
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   input: {
     height: 40,
@@ -151,7 +147,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 20,
     paddingHorizontal: 10,
-    width: '100%',
+    width: '75%',
   },
   textInput: {
     height: 48,
@@ -162,19 +158,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     width: '75%',
   },
-  docDate: {
-    fontSize: 14,
-    color: 'gray',
-  },
-  docStatus: {
-    fontSize: 14,
-    marginTop: 5,
-  },
-  verified: {
-    color: 'green',
-  },
-  notVerified: {
-    color: 'gray',
+  verifyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
 });
 
