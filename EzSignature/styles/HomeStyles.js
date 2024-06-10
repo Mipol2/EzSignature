@@ -63,6 +63,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  bottomView: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
   modalView: {
     width: '90%',
     backgroundColor: 'white',
@@ -79,9 +84,10 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   uploadModalView: {
-    width: '90%',
+    width: '100%',
     backgroundColor: 'white',
-    borderRadius: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 20,
     alignItems: 'center',
     shadowColor: '#000',
@@ -156,7 +162,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     marginBottom: 16,
-    width: '75%',
+    width: '100%',
   },
   verifyContainer: {
     alignItems: 'center',

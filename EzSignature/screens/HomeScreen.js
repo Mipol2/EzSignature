@@ -477,7 +477,7 @@ export default function HomeScreen() {
         visible={uploadModalVisible}
         onRequestClose={closeUploadModal}
       >
-        <View style={styles.centeredView}>
+        <View style={styles.bottomView}>
           <View style={styles.uploadModalView}>
             <Text style={styles.uploadModalText}>Document Upload</Text>
             <TouchableOpacity
