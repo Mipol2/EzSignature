@@ -128,9 +128,12 @@ export default function HomeScreen() {
 
       // If there's a match, decode the URI component, which contains the file path, and return it
       if (!match && !match[1]) {
+        alert(`Error fetching documents: ${match} ${match[1]}`);
         console.error("No valid file path found in URL");
         return false;
       } 
+
+      
 
       const decodedPath = decodeURIComponent(match[1]);
       const fileRef = ref(storage, decodedPath);
@@ -138,7 +141,7 @@ export default function HomeScreen() {
       const metadata = await getMetadata(fileRef);
       const { filePublicKey, fileSign, dateCreated } = metadata.customMetadata || { publicKey: null, sign: null, dateCreated: new Date().toISOString() };
 
-      return (filePublicKey === publicKey && filesign === fileSign);
+      return (filePublicKey === publicKey && fileSign === sign);
 
     } catch (err) {
       console.error(err);
