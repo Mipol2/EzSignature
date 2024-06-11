@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "653014407475",
+    "project_id": "ezsignatureapp",
+    "storage_bucket": "ezsignatureapp.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:653014407475:android:06cf0c3d07ce131f954646",
+        "android_client_info": {
+          "package_name": "com.example.ezsignature"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQl_VVhj0PFvQqbx4F4eodrj6TkGi_ey0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
