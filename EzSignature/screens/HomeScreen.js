@@ -33,6 +33,7 @@ export default function HomeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [renameModalVisible, setRenameModalVisible] = useState(false);
+  const [verifyModalVisible, setVerifyModalVisible] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [user, setUser] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -45,6 +46,7 @@ export default function HomeScreen() {
   const [downloadLink, setDownloadLink] = useState('');
   const [digitalSignature, setDigitalSignature] = useState('');
   const [sign, setSign] = useState('');
+  const [inputPublicKey, setInputPublicKey] = useState('');
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -107,18 +109,40 @@ export default function HomeScreen() {
     }
   };
 
-  const verifyFile = async (userId, fileUrl, publicKey, sign) => {
+  const verifyFile = async (fileUrl, publicKey, sign) => {
 
     // ganti test pake nama user?
 
     try {
-      const cleanUrl = fileUrl.replace('file://', '');
-      const hash = await RNHash.hashFile(cleanUrl, CONSTANTS.HashAlgorithms.sha512);
-      const verify = await RSAKeychain.verify(sign, hash, publicKey);
-      return verify;
+      
+      // !! workaround dongo
+
+      // const cleanUrl = fileUrl.replace('file://', '');
+      // const hash = await RNHash.hashFile(cleanUrl, CONSTANTS.HashAlgorithms.sha512);
+      // const verify = await RSAKeychain.verify(sign, hash, publicKey);
+
+      const pattern = /b\/[^\/]+\/o\/([^?]+)/;
+
+      // Attempt to match the pattern in the URL
+      const match = url.match(pattern);
+
+      // If there's a match, decode the URI component, which contains the file path, and return it
+      if (!match && !match[1]) {
+        console.error("No valid file path found in URL");
+        return false;
+      } 
+
+      const decodedPath = decodeURIComponent(match[1]);
+      const fileRef = ref(storage, decodedPath);
+
+      const metadata = await getMetadata(fileRef);
+      const { filePublicKey, fileSign, dateCreated } = metadata.customMetadata || { publicKey: null, sign: null, dateCreated: new Date().toISOString() };
+
+      return (filePublicKey === publicKey && filesign === fileSign);
+
     } catch (err) {
       console.error(err);
-      return null;
+      return false;
     }
   };
 
@@ -411,6 +435,12 @@ export default function HomeScreen() {
             placeholder="Enter digital signature"
             value={digitalSignature}
             onChangeText={setDigitalSignature}
+          />
+          <TextInput
+            style={styles.textInput}
+            placeholder="Enter public key"
+            value={inputPublicKey}
+            onChangeText={setInputPublicKey}
           />
           <TouchableOpacity
             style={styles.actionButton}

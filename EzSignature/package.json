@@ -31,7 +31,6 @@
     "react-native-elements": "^3.4.3",
     "react-native-gesture-handler": "~2.16.1",
     "react-native-hash": "^3.0.3",
-    "react-native-image-to-pdf": "^1.2.0",
     "react-native-paper": "^5.12.3",
     "react-native-reanimated": "~3.10.1",
     "react-native-rsa-native": "^2.0.5",

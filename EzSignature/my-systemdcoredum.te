@@ -1,0 +1,10 @@
+
+module my-systemdcoredum 1.0;
+
+require {
+	type systemd_coredump_t;
+	class capability sys_admin;
+}
+
+#============= systemd_coredump_t ==============
+allow systemd_coredump_t self:capability sys_admin;
